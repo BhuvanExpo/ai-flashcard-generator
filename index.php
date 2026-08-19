@@ -1,0 +1,261 @@
+<?php
+/**
+ * ============================================================================
+ * AI FLASHCARD & STUDY NOTES GENERATOR - FRONTEND DASHBOARD
+ * ============================================================================
+ * 
+ * Main user interface for pasting lecture transcripts, selecting presets,
+ * viewing 3D interactive flashcards, reviewing study notes, and running
+ * quiz practice sessions.
+ * 
+ * @package AI_Flashcards
+ * @version 1.0.0
+ * @license MIT
+ */
+
+declare(strict_types=1);
+require_once __DIR__ . '/database.php';
+?>
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Flashcard &amp; Study Notes Generator | NLP Learning Engine</title>
+  
+  <!-- Meta description for academic portfolio / SEO -->
+  <meta name="description" content="AI-Powered Flashcard and Study Notes Generator built with PHP, Python NLP, Scikit-learn TF-IDF, and modern 3D CSS animations.">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  
+  <!-- Custom Modern Stylesheet -->
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+
+  <div class="app-wrapper">
+    <!-- ====================================================================== -->
+    <!-- HEADER & BRANDING BAR -->
+    <!-- ====================================================================== -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fas fa-brain"></i>
+        </div>
+        <div class="brand-text">
+          <h1>AI Flashcard &amp; Study Notes Generator</h1>
+          <p>NLP-Driven Knowledge Extraction &amp; Interactive Revision System</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <span class="stat-badge highlight" style="font-size: 0.75rem;">
+          <i class="fas fa-graduation-cap"></i> B.Tech Major Project
+        </span>
+        <button id="themeToggle" class="btn btn-icon-only" title="Toggle Dark/Light Mode" aria-label="Toggle theme">
+          <i id="themeIcon" class="fas fa-sun"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- ====================================================================== -->
+    <!-- MAIN INTERFACE LAYOUT -->
+    <!-- ====================================================================== -->
+    <main class="main-layout">
+      
+      <!-- LEFT COLUMN: INPUT & GENERATOR CONTROLS -->
+      <aside class="panel-generator">
+        <div class="panel-header">
+          <h2><i class="fas fa-wand-magic-sparkles" style="color: var(--accent-primary);"></i> Generate Deck</h2>
+          <p>Paste lecture notes, articles, or transcripts to extract flashcards and study points.</p>
+        </div>
+
+        <!-- Quick Sample Presets -->
+        <div class="preset-selector">
+          <div class="preset-title">Load Sample Transcripts:</div>
+          <div class="preset-pills">
+            <button type="button" class="preset-btn" data-preset="cs">
+              <i class="fas fa-microchip"></i> CS / Operating Systems
+            </button>
+            <button type="button" class="preset-btn" data-preset="bio">
+              <i class="fas fa-dna"></i> Biology / Cells
+            </button>
+            <button type="button" class="preset-btn" data-preset="econ">
+              <i class="fas fa-chart-line"></i> Economics / Inflation
+            </button>
+          </div>
+        </div>
+
+        <!-- Generation Form -->
+        <form id="deckForm">
+          <div class="form-group">
+            <label for="deckTitle">Topic / Deck Name</label>
+            <input 
+              type="text" 
+              id="deckTitle" 
+              class="form-control" 
+              placeholder="e.g., Computer Science: Virtual Memory &amp; Concurrency"
+              maxlength="120"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="transcriptInput">
+              <span>Lecture Transcript / Notes</span>
+              <span id="charCounter" class="char-counter">0 chars</span>
+            </label>
+            <textarea 
+              id="transcriptInput" 
+              class="form-control" 
+              rows="8" 
+              placeholder="Paste raw lecture audio transcript, textbook excerpt, or study notes here..."
+              required
+            ></textarea>
+          </div>
+
+          <button type="submit" id="generateBtn" class="btn btn-primary btn-generate">
+            <span class="spinner"></span>
+            <span class="btn-text"><i class="fas fa-bolt"></i> Generate Flashcards</span>
+          </button>
+        </form>
+
+        <!-- Saved Decks History Section -->
+        <section class="history-section">
+          <div class="history-header">
+            <span class="history-title"><i class="fas fa-history"></i> Saved Decks</span>
+          </div>
+          <ul id="historyList" class="history-list">
+            <!-- Dynamically populated by JS -->
+          </ul>
+        </section>
+      </aside>
+
+      <!-- RIGHT COLUMN: INTERACTIVE OUTPUT & DISPLAY TABS -->
+      <section class="content-area">
+        
+        <!-- INITIAL EMPTY STATE -->
+        <div id="emptyState" class="empty-state">
+          <i class="fas fa-layer-group empty-icon"></i>
+          <h3>No Flashcards Generated Yet</h3>
+          <p>Select a sample preset or paste your lecture transcript on the left to extract key terms, 3D interactive flashcards, and summary notes.</p>
+        </div>
+
+        <!-- ACTIVE DECK WORKSPACE CONTAINER -->
+        <div id="activeDeckView" style="display: none; flex-direction: column; gap: 1.5rem;">
+          
+          <!-- Deck Metadata & Statistics Banner -->
+          <div class="deck-banner">
+            <div class="deck-info">
+              <h2 id="currentDeckTitle">Operating Systems: Concurrency &amp; Memory</h2>
+              <div class="deck-tags">
+                <span class="stat-badge highlight" id="statCardsCount"><i class="fas fa-clone"></i> 8 Cards</span>
+                <span class="stat-badge" id="statWordsCount"><i class="fas fa-file-alt"></i> 145 Words</span>
+                <span class="stat-badge" id="statEngineType"><i class="fas fa-microchip"></i> Scikit-Learn TF-IDF</span>
+              </div>
+            </div>
+
+            <!-- Export Buttons -->
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button id="btnExportCsv" class="btn btn-secondary btn-sm" title="Export as Anki-compatible CSV">
+                <i class="fas fa-file-csv"></i> Anki CSV
+              </button>
+              <button id="btnExportJson" class="btn btn-secondary btn-sm" title="Download raw JSON data">
+                <i class="fas fa-code"></i> JSON
+              </button>
+              <button id="btnPrint" class="btn btn-secondary btn-sm" title="Printable Flashcard Sheet">
+                <i class="fas fa-print"></i> Print
+              </button>
+            </div>
+          </div>
+
+          <!-- Navigation Tabs & Toolbar Controls -->
+          <div class="deck-toolbar">
+            <!-- View Mode Switcher -->
+            <div class="tabs-nav" role="tablist">
+              <button class="tab-btn active" data-tab="grid" role="tab" aria-selected="true">
+                <i class="fas fa-th-large"></i> 3D Flashcards
+              </button>
+              <button class="tab-btn" data-tab="notes" role="tab" aria-selected="false">
+                <i class="fas fa-list-check"></i> Study Notes
+              </button>
+              <button class="tab-btn" data-tab="quiz" role="tab" aria-selected="false">
+                <i class="fas fa-dumbbell"></i> Practice Quiz
+              </button>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="toolbar-controls">
+              <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchCards" class="form-control" placeholder="Search terms or definitions...">
+              </div>
+              <button id="btnFlipAll" class="btn btn-secondary btn-sm" title="Flip all cards simultaneously">
+                <i class="fas fa-sync-alt"></i> Flip All
+              </button>
+              <button id="btnShuffle" class="btn btn-secondary btn-sm" title="Randomize card order">
+                <i class="fas fa-random"></i> Shuffle
+              </button>
+            </div>
+          </div>
+
+          <!-- TAB PANE 1: 3D FLASHCARDS RESPONSIVE GRID -->
+          <div id="gridPane" class="tab-pane">
+            <div id="flashcardsGrid" class="flashcards-grid">
+              <!-- Dynamically populated by JS with 3D Flip Cards -->
+            </div>
+          </div>
+
+          <!-- TAB PANE 2: STUDY NOTES & EXTRACTIVE SUMMARY -->
+          <div id="notesPane" class="tab-pane" style="display: none;">
+            <div class="notes-container">
+              <div class="notes-card">
+                <div class="notes-header">
+                  <h3><i class="fas fa-highlighter" style="color: var(--accent-amber);"></i> Key Lecture Takeaways</h3>
+                  <span style="font-size: 0.8rem; color: var(--text-muted);">Extractive Sentence Salience</span>
+                </div>
+                <ul id="notesList" class="notes-list">
+                  <!-- Dynamically populated by JS -->
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB PANE 3: INTERACTIVE QUIZ & PRACTICE MODE -->
+          <div id="quizPane" class="tab-pane" style="display: none;">
+            <div class="quiz-container">
+              <!-- Progress Indicator -->
+              <div class="quiz-progress-bar-wrap">
+                <div id="quizProgressBar" class="quiz-progress-fill"></div>
+              </div>
+              <div id="quizCounterText" class="quiz-counter">Card 1 of 8</div>
+
+              <!-- Active Practice Flashcard -->
+              <div id="quizCardWrapper" class="flashcard-wrapper quiz-card-wrapper">
+                <!-- Injected by JS -->
+              </div>
+
+              <!-- Mastery Feedback Action Buttons -->
+              <div class="quiz-actions">
+                <button id="btnQuizReview" class="btn btn-review" style="flex: 1;">
+                  <i class="fas fa-redo"></i> Needs Review [2]
+                </button>
+                <button id="btnQuizGotIt" class="btn btn-got-it" style="flex: 1;">
+                  <i class="fas fa-check"></i> Mastered / Got It [1]
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Custom JavaScript Interaction Script -->
+  <script src="static/script.js"></script>
+</body>
+</html>

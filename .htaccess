@@ -1,0 +1,50 @@
+# =============================================================================
+# AI FLASHCARD & STUDY NOTES GENERATOR - APACHE SECURITY RULES (.htaccess)
+# =============================================================================
+
+# 1. Disable Directory Index Browsing
+Options -Indexes
+
+# 2. Set Default Character Encoding
+AddDefaultCharset UTF-8
+
+# 3. Block Direct HTTP Access to Sensitive Data Files & Python Scripts
+<FilesMatch "\.(db|sqlite|sqlite3|py|json|lock|env|log|md|txt|sh)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Explicitly protect the SQLite database file
+<Files "flashcards.db">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</Files>
+
+# Explicitly protect the NLP Python script from direct download
+<Files "nlp_engine.py">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</Files>
+
+# 4. Security Headers (Requires mod_headers)
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
