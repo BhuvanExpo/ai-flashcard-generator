@@ -1,0 +1,23 @@
+# SQLite database (runtime data - do not commit)
+flashcards.db
+
+# Python virtual environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+
+# PHP server logs
+*.log
+
+# Misc
+*.docx
