@@ -34,7 +34,7 @@ function sendJsonResponse(array $data, int $statusCode = 200): never {
     exit;
 }
 
-/** Return a sanitised, generic error - never expose internal details to clients. */
+/** Return a sanitised, generic error — never expose internal details to clients. */
 function sendError(string $publicMessage, int $status, string $logMessage = ''): never {
     if ($logMessage !== '') {
         error_log('[generate.php] ' . $logMessage);
@@ -42,7 +42,7 @@ function sendError(string $publicMessage, int $status, string $logMessage = ''):
     sendJsonResponse(['status' => 'error', 'message' => $publicMessage], $status);
 }
 
-// Global fallback - still keeps internal detail server-side only.
+// Global fallback — still keeps internal detail server-side only.
 set_exception_handler(static function (Throwable $e): never {
     error_log('[generate.php] Unhandled exception: ' . $e->getMessage());
     sendJsonResponse(['status' => 'error', 'message' => 'Internal server error.'], 500);
@@ -55,7 +55,7 @@ set_exception_handler(static function (Throwable $e): never {
 $method = $_SERVER['REQUEST_METHOD'] ?? '';
 $action = filter_input(INPUT_GET, 'action', FILTER_SANITIZE_SPECIAL_CHARS) ?? '';
 
-// GET /generate.php?action=list_decks
+// ── GET /generate.php?action=list_decks ────────────────────────────────────
 if ($method === 'GET' && $action === 'list_decks') {
     try {
         sendJsonResponse(['status' => 'success', 'decks' => getAllDecks(50)]);
@@ -64,7 +64,7 @@ if ($method === 'GET' && $action === 'list_decks') {
     }
 }
 
-// GET /generate.php?action=get_deck&id=N
+// ── GET /generate.php?action=get_deck&id=N ─────────────────────────────────
 if ($method === 'GET' && $action === 'get_deck') {
     $deckId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
     if (!$deckId || $deckId < 1) {
@@ -81,7 +81,7 @@ if ($method === 'GET' && $action === 'get_deck') {
     }
 }
 
-// POST /generate.php?action=delete_deck
+// ── POST /generate.php?action=delete_deck ──────────────────────────────────
 if ($method === 'POST' && $action === 'delete_deck') {
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
     $deckId = filter_var($body['id'] ?? null, FILTER_VALIDATE_INT);
@@ -99,31 +99,31 @@ if ($method === 'POST' && $action === 'delete_deck') {
     }
 }
 
-// POST /generate.php (generate flashcards)
+// ── POST /generate.php (generate flashcards) ───────────────────────────────
 if ($method === 'POST') {
     $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
     $payload = (stripos($contentType, 'application/json') !== false)
         ? (json_decode(file_get_contents('php://input'), true) ?? [])
         : $_POST;
 
-    // 1. Sanitise inputs
+    // 1. Sanitise inputs -------------------------------------------------------
     $title      = strip_tags(trim((string)($payload['title'] ?? '')));
     $transcript = strip_tags(trim((string)($payload['transcript'] ?? '')));
 
     if ($title === '') {
-        $title = 'Study Deck - ' . date('M j, Y g:i A');
+        $title = 'Study Deck – ' . date('M j, Y g:i A');
     }
     $title = mb_substr($title, 0, 120, 'UTF-8');
 
     $transcriptLen = mb_strlen($transcript, 'UTF-8');
     if ($transcriptLen < 25) {
-        sendError('Transcript is too brief - enter at least 25 characters.', 422);
+        sendError('Transcript is too brief — enter at least 25 characters.', 422);
     }
     if ($transcriptLen > 150_000) {
-        sendError('Transcript exceeds the 150,000-character limit.', 422);
+        sendError('Transcript exceeds the 150 000-character limit.', 422);
     }
 
-    // 2. Resolve Python binary
+    // 2. Resolve Python binary -------------------------------------------------
     $pythonBin = null;
     foreach (['/usr/bin/python3', '/usr/local/bin/python3', '/opt/homebrew/bin/python3'] as $path) {
         if (is_executable($path)) {
@@ -131,19 +131,22 @@ if ($method === 'POST') {
             break;
         }
     }
-    $pythonBin ??= 'python3'; // Last resort: rely on $PATH
+    // Last resort: rely on $PATH
+    $pythonBin ??= 'python3';
 
     $nlpScript = __DIR__ . '/nlp_engine.py';
     if (!is_file($nlpScript)) {
         sendError('NLP engine not found on server.', 500, 'nlp_engine.py missing');
     }
 
-    // 3. Spawn NLP sub-process via pipe (no user data in argv)
+    // 3. Spawn NLP sub-process via pipe (no user data in argv) -----------------
     $descriptorspec = [
         0 => ['pipe', 'r'],  // stdin
         1 => ['pipe', 'w'],  // stdout
         2 => ['pipe', 'w'],  // stderr
     ];
+
+    // Build command with fully-quoted binary and script path only.
     $command = escapeshellarg($pythonBin) . ' ' . escapeshellarg($nlpScript);
     $process = proc_open($command, $descriptorspec, $pipes, __DIR__);
 
@@ -151,11 +154,11 @@ if ($method === 'POST') {
         sendError('Could not start NLP process.', 500, 'proc_open failed');
     }
 
-    // 4. Write JSON payload to stdin, then close to signal EOF
+    // 4. Write JSON payload to stdin, then close to signal EOF -----------------
     fwrite($pipes[0], json_encode(['title' => $title, 'text' => $transcript], JSON_UNESCAPED_UNICODE));
     fclose($pipes[0]);
 
-    // 5. Read stdout/stderr with stream_select timeout (20 seconds)
+    // 5. Read with timeout via stream_select -----------------------------------
     $stdoutOutput = '';
     $stderrOutput = '';
     $deadline = microtime(true) + 20.0;
@@ -187,12 +190,12 @@ if ($method === 'POST') {
     $returnCode = proc_close($process);
 
     if ($returnCode !== 0 || $stdoutOutput === '') {
-        // Log stderr server-side only - never expose internal errors to clients
+        // Log stderr server-side, never expose it to the client.
         error_log("[generate.php] NLP exit=$returnCode stderr=" . substr($stderrOutput, 0, 500));
         sendError('NLP processing failed. Check your transcript and try again.', 500);
     }
 
-    // 6. Parse and validate NLP JSON
+    // 6. Parse and validate NLP JSON ------------------------------------------
     $nlpResult = json_decode($stdoutOutput, true);
     if (!is_array($nlpResult) || ($nlpResult['status'] ?? '') !== 'success') {
         sendError($nlpResult['message'] ?? 'Could not extract flashcards from transcript.', 422);
@@ -203,7 +206,7 @@ if ($method === 'POST') {
     $stats      = $nlpResult['stats'] ?? [];
     $wordCount  = (int)($stats['word_count'] ?? str_word_count($transcript));
 
-    // 7. Persist to SQLite
+    // 7. Persist to SQLite -----------------------------------------------------
     try {
         $deckId    = saveDeckWithCards($title, $transcript, $flashcards, $studyNotes, $wordCount);
         $savedDeck = getDeckById($deckId);

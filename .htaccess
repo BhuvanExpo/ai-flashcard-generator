@@ -43,8 +43,15 @@ AddDefaultCharset UTF-8
 
 # 4. Security Headers (Requires mod_headers)
 <IfModule mod_headers.c>
+    # Prevent MIME type sniffing
     Header set X-Content-Type-Options "nosniff"
+    
+    # Prevent clickjacking attacks by only allowing framing from same origin
     Header set X-Frame-Options "SAMEORIGIN"
+    
+    # Enable browser XSS filtering
     Header set X-XSS-Protection "1; mode=block"
+    
+    # Restrict referrer leakage
     Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>

@@ -45,11 +45,12 @@ function getDbConnection(): PDO {
 
 /**
  * Creates the tables and indexes if they do not already exist.
- * Each statement is executed separately - SQLite exec() is single-statement only.
+ * Each statement is executed separately — SQLite's exec() is single-statement.
  */
 function initDatabaseSchema(): void {
     $db = getDbConnection();
 
+    // Each string is one statement. SQLite exec() only handles one at a time.
     $statements = [
         'CREATE TABLE IF NOT EXISTS decks (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,26 +61,26 @@ function initDatabaseSchema(): void {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )',
 
-        "CREATE TABLE IF NOT EXISTS flashcards (
+        'CREATE TABLE IF NOT EXISTS flashcards (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
             deck_id          INTEGER NOT NULL,
             term             TEXT    NOT NULL,
             definition       TEXT    NOT NULL,
-            card_type        TEXT    DEFAULT 'definition',
-            difficulty       TEXT    DEFAULT 'medium',
+            card_type        TEXT    DEFAULT \'definition\',
+            difficulty       TEXT    DEFAULT \'medium\',
             importance_score REAL    DEFAULT 0.0,
             created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (deck_id) REFERENCES decks(id) ON DELETE CASCADE
-        )",
+        )',
 
-        "CREATE TABLE IF NOT EXISTS study_notes (
+        'CREATE TABLE IF NOT EXISTS study_notes (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             deck_id      INTEGER NOT NULL,
             note_text    TEXT    NOT NULL,
             bullet_order INTEGER DEFAULT 0,
             created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (deck_id) REFERENCES decks(id) ON DELETE CASCADE
-        )",
+        )',
 
         'CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id)',
         'CREATE INDEX IF NOT EXISTS idx_notes_deck      ON study_notes(deck_id)',
@@ -94,12 +95,12 @@ function initDatabaseSchema(): void {
 /**
  * Inserts a deck with all its flashcards and notes in a single transaction.
  *
- * @param  string $title
- * @param  string $transcript
- * @param  array  $cards      Each element is an associative array from the NLP engine.
- * @param  array  $notes      Flat list of note strings.
- * @param  int    $wordCount
- * @return int    Newly created deck ID.
+ * @param  string   $title
+ * @param  string   $transcript
+ * @param  array    $cards     Each element is an associative array from the NLP engine.
+ * @param  array    $notes     Flat list of note strings.
+ * @param  int      $wordCount
+ * @return int      Newly created deck ID.
  * @throws Exception on transaction failure.
  */
 function saveDeckWithCards(
@@ -113,7 +114,7 @@ function saveDeckWithCards(
     $db->beginTransaction();
 
     try {
-        // Insert deck row
+        // --- Deck row ---
         $db->prepare(
             'INSERT INTO decks (title, transcript, word_count, card_count)
              VALUES (:title, :transcript, :word_count, :card_count)'
@@ -125,7 +126,7 @@ function saveDeckWithCards(
         ]);
         $deckId = (int) $db->lastInsertId();
 
-        // Insert flashcard rows
+        // --- Flashcard rows ---
         if ($cards !== []) {
             $cardStmt = $db->prepare(
                 'INSERT INTO flashcards
@@ -145,7 +146,7 @@ function saveDeckWithCards(
             }
         }
 
-        // Insert study note rows
+        // --- Study note rows ---
         if ($notes !== []) {
             $noteStmt = $db->prepare(
                 'INSERT INTO study_notes (deck_id, note_text, bullet_order)

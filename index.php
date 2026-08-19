@@ -21,7 +21,7 @@ require_once __DIR__ . '/database.php';
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Flashcard &amp; Study Notes Generator | NLP Learning Engine</title>
+  <title>AI Flashcard & Study Notes Generator | NLP Learning Engine</title>
   
   <!-- Meta description for academic portfolio / SEO -->
   <meta name="description" content="AI-Powered Flashcard and Study Notes Generator built with PHP, Python NLP, Scikit-learn TF-IDF, and modern 3D CSS animations.">
@@ -44,8 +44,8 @@ require_once __DIR__ . '/database.php';
           <i class="fas fa-brain"></i>
         </div>
         <div class="brand-text">
-          <h1>AI Flashcard &amp; Study Notes Generator</h1>
-          <p>NLP-Driven Knowledge Extraction &amp; Interactive Revision System</p>
+          <h1>AI Flashcard & Study Notes Generator</h1>
+          <p>NLP-Driven Knowledge Extraction & Interactive Revision System</p>
         </div>
       </div>
 
@@ -95,7 +95,7 @@ require_once __DIR__ . '/database.php';
               type="text" 
               id="deckTitle" 
               class="form-control" 
-              placeholder="e.g., Computer Science: Virtual Memory &amp; Concurrency"
+              placeholder="e.g., Computer Science: Virtual Memory & Concurrency"
               maxlength="120"
             >
           </div>
@@ -147,7 +147,7 @@ require_once __DIR__ . '/database.php';
           <!-- Deck Metadata & Statistics Banner -->
           <div class="deck-banner">
             <div class="deck-info">
-              <h2 id="currentDeckTitle">Operating Systems: Concurrency &amp; Memory</h2>
+              <h2 id="currentDeckTitle">Operating Systems: Concurrency & Memory</h2>
               <div class="deck-tags">
                 <span class="stat-badge highlight" id="statCardsCount"><i class="fas fa-clone"></i> 8 Cards</span>
                 <span class="stat-badge" id="statWordsCount"><i class="fas fa-file-alt"></i> 145 Words</span>
@@ -199,14 +199,18 @@ require_once __DIR__ . '/database.php';
             </div>
           </div>
 
+          <!-- ================================================================ -->
           <!-- TAB PANE 1: 3D FLASHCARDS RESPONSIVE GRID -->
+          <!-- ================================================================ -->
           <div id="gridPane" class="tab-pane">
             <div id="flashcardsGrid" class="flashcards-grid">
               <!-- Dynamically populated by JS with 3D Flip Cards -->
             </div>
           </div>
 
+          <!-- ================================================================ -->
           <!-- TAB PANE 2: STUDY NOTES & EXTRACTIVE SUMMARY -->
+          <!-- ================================================================ -->
           <div id="notesPane" class="tab-pane" style="display: none;">
             <div class="notes-container">
               <div class="notes-card">
@@ -221,7 +225,9 @@ require_once __DIR__ . '/database.php';
             </div>
           </div>
 
+          <!-- ================================================================ -->
           <!-- TAB PANE 3: INTERACTIVE QUIZ & PRACTICE MODE -->
+          <!-- ================================================================ -->
           <div id="quizPane" class="tab-pane" style="display: none;">
             <div class="quiz-container">
               <!-- Progress Indicator -->

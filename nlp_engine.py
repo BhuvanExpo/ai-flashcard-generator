@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AI-Powered Flashcard & Study Notes Generator - NLP Engine
+AI-Powered Flashcard & Study Notes Generator – NLP Engine
 ==========================================================
 Reads a JSON object from stdin:  {"title": "...", "text": "..."}
 Writes a JSON object to stdout.
@@ -18,7 +18,7 @@ import re
 import math
 from typing import Any
 
-# Optional ML dependency - graceful fallback if absent
+# Optional ML dependency – graceful fallback if absent
 SKLEARN_AVAILABLE = False
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
@@ -31,7 +31,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Stop-word set (academic + standard English)
 # ---------------------------------------------------------------------------
-_STOP_WORDS: frozenset = frozenset({
+_STOP_WORDS: frozenset[str] = frozenset({
     'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an',
     'and', 'any', 'are', "aren't", 'as', 'at', 'be', 'because', 'been',
     'before', 'being', 'below', 'between', 'both', 'but', 'by', 'can',
@@ -59,8 +59,11 @@ _STOP_WORDS: frozenset = frozenset({
     'professor', 'slide', 'students', 'talk', 'today', 'welcome',
 })
 
-# Abbreviations to protect during sentence splitting
-_ABBREVIATIONS: list = [
+
+# ---------------------------------------------------------------------------
+# Pre-compiled abbreviation table for sentence splitter
+# ---------------------------------------------------------------------------
+_ABBREVIATIONS: list[str] = [
     'approx', 'al', 'dr', 'e.g', 'eq', 'etc', 'fig', 'i.e', 'mr',
     'mrs', 'ms', 'prof', 'vs',
 ]
@@ -69,8 +72,9 @@ _ABBREVIATIONS: list = [
 class NLPEngine:
     """Extracts flashcard term-definition pairs and study notes from text."""
 
-    # Regex definition patterns: (compiled_pattern, term_group, def_group, card_type_label)
-    _PATTERNS = [
+    # Regex definition patterns:
+    # Each entry is (compiled_pattern, term_group, def_group, card_type_label)
+    _PATTERNS: list[tuple[re.Pattern, int, int, str]] = [
         # "X is/are defined as Y"
         (re.compile(
             r'\b([A-Z][a-zA-Z0-9 \-]{2,50})\s+(?:is|are|was|were)\s+defined\s+as\s+([^.?!;:\n]+[.?!])',
@@ -81,7 +85,7 @@ class NLPEngine:
             r'\b([A-Z][a-zA-Z0-9 \-]{2,50})\s+(?:refers\s+to|denotes|signifies|represents|describes)\s+([^.?!;:\n]+[.?!])',
             re.IGNORECASE), 1, 2, 'Concept Reference'),
 
-        # "X is a/an <noun> that/which ..."
+        # "X is a/an <noun> that/which …"
         (re.compile(
             r'\b([A-Z][a-zA-Z0-9 \-]{2,45})\s+(?:is|are)\s+(?:an?|the)\s+'
             r'([a-zA-Z0-9 \-]+(?:\s+(?:that|which|used\s+to|responsible\s+for|characterized\s+by|capable\s+of)\s+[^.?!;\n]+)[.?!])',
@@ -97,7 +101,7 @@ class NLPEngine:
             r'^\s*([A-Za-z0-9 \-/]{3,45})\s*:\s*([A-Z][^.?!;\n]{15,}[.?!]?)',
             re.MULTILINE), 1, 2, 'Structured Term'),
 
-        # "The primary function of X is to Y"
+        # "The primary function/purpose of X is to Y"
         (re.compile(
             r'The\s+(?:primary|main|key|fundamental)\s+(?:function|purpose|role|objective)\s+of\s+'
             r'([a-zA-Z0-9 \-]{3,40})\s+(?:is\s+to|is)\s+([^.?!;\n]+[.?!])',
@@ -109,17 +113,11 @@ class NLPEngine:
             re.IGNORECASE), 1, 2, 'Core Essence'),
     ]
 
-    # Regex for explanatory verbs (used in sentence scoring)
+    # Explanatory-verb regex reused in sentence scorer
     _EXPL_VERBS = re.compile(
         r'\b(is|are|means|provides|enables|functions|acts|serves|stores|calculates)\b',
         re.IGNORECASE,
     )
-    _SIGNAL_WORDS = re.compile(
-        r'\b(crucial|important|fundamental|essential|key|primary|significant|'
-        r'mechanism|principle|process|result|therefore|thus)\b', re.IGNORECASE)
-    _DEF_MARKERS = re.compile(
-        r'\b(is defined as|refers to|consists of|characterized by|functions as)\b',
-        re.IGNORECASE)
 
     def __init__(self, min_term: int = 3, max_term: int = 60) -> None:
         self.min_term = min_term
@@ -129,7 +127,7 @@ class NLPEngine:
     # Public entry point
     # ------------------------------------------------------------------
 
-    def process(self, text: str, title: str = '') -> dict:
+    def process(self, text: str, title: str = '') -> dict[str, Any]:
         """Run the full pipeline and return a result dict."""
         cleaned = self._clean(text)
         words   = re.findall(r'\b\w+\b', cleaned)
@@ -138,13 +136,14 @@ class NLPEngine:
         if wcount < 10:
             return {
                 'status':      'error',
-                'message':     'Transcript too short - provide at least 15 words.',
+                'message':     'Transcript too short – provide at least 15 words.',
                 'flashcards':  [],
                 'study_notes': [],
                 'stats':       {'word_count': wcount, 'cards_generated': 0},
             }
 
         sentences = self._segment(cleaned)
+
         regex_cards   = self._extract_regex(cleaned, sentences)
         seen          = {c['term'].lower() for c in regex_cards}
         target        = max(5, min(20, math.ceil(wcount / 35)))
@@ -184,8 +183,9 @@ class NLPEngine:
 
     def _clean(self, text: str) -> str:
         text = text.replace('\r\n', '\n').replace('\r', '\n')
-        for src, dst in (('\u201c', '"'), ('\u201d', '"'), ('\u2018', "'"), ('\u2019', "'"),
-                          ('\u2014', ' - '), ('\u2013', ' - ')):
+        # Smart quotes / dashes
+        for src, dst in (('"', '"'), ('"', '"'), (''', "'"), (''', "'"),
+                          ('—', ' - '), ('–', ' - ')):
             text = text.replace(src, dst)
         text = re.sub(r'[ \t]+', ' ', text)
         return text.strip()
@@ -194,7 +194,7 @@ class NLPEngine:
     # Sentence segmentation
     # ------------------------------------------------------------------
 
-    def _segment(self, text: str) -> list:
+    def _segment(self, text: str) -> list[str]:
         """Rule-based splitter that respects abbreviations and decimals."""
         masked = text
         for abbr in _ABBREVIATIONS:
@@ -205,7 +205,7 @@ class NLPEngine:
         result = []
         for s in parts:
             s = s.replace('@#@', '.').strip()
-            s = re.sub(r'^[\s*\-\u2022>#\d.)]+', '', s).strip()
+            s = re.sub(r'^[\s*\-•>#\d.)]+', '', s).strip()
             if len(s) >= 20:
                 result.append(s)
         return result
@@ -219,7 +219,7 @@ class NLPEngine:
         t = re.sub(r'^(the|a|an)\s+', '', t, flags=re.IGNORECASE).strip(' "\'')
         return t
 
-    def _is_valid_term(self, term: str, seen: set) -> bool:
+    def _is_valid_term(self, term: str, seen: set[str]) -> bool:
         norm = term.lower()
         return (
             self.min_term <= len(term) <= self.max_term
@@ -240,9 +240,9 @@ class NLPEngine:
             'importance': importance,
         }
 
-    def _extract_regex(self, text: str, sentences: list) -> list:
-        cards = []
-        seen  = set()
+    def _extract_regex(self, text: str, sentences: list[str]) -> list[dict]:
+        cards: list[dict] = []
+        seen:  set[str]   = set()
 
         for pattern, tg, dg, ctype in self._PATTERNS:
             for match in pattern.finditer(text):
@@ -271,8 +271,8 @@ class NLPEngine:
     # TF-IDF concept extraction
     # ------------------------------------------------------------------
 
-    def _best_sentence(self, term: str, sentences: list) -> str:
-        """Return the most informative sentence containing term."""
+    def _best_sentence(self, term: str, sentences: list[str]) -> str:
+        """Return the most informative sentence containing *term*."""
         rgx = re.compile(r'\b' + re.escape(term) + r'\b', re.IGNORECASE)
         best, best_score = '', -1.0
         for sent in sentences:
@@ -286,8 +286,8 @@ class NLPEngine:
                 best, best_score = sent, score
         return best
 
-    def _extract_tfidf(self, sentences: list, seen: set, max_cards: int) -> list:
-        cards = []
+    def _extract_tfidf(self, sentences: list[str], seen: set[str], max_cards: int) -> list[dict]:
+        cards: list[dict] = []
 
         if SKLEARN_AVAILABLE and len(sentences) >= 2:
             try:
@@ -319,30 +319,33 @@ class NLPEngine:
                         'importance': min(0.85, round(score * 2.0, 2)),
                     })
                     seen.add(norm)
-            except Exception as exc:
-                # Log warning but continue to frequency fallback
-                print(f'[nlp_engine] WARNING: TF-IDF failed: {exc}', file=sys.stderr)
+            except Exception as exc:          # noqa: BLE001
+                error_note = f'TF-IDF failed: {exc}'
+                # Fall through to frequency fallback; log for diagnostics only.
+                import sys as _sys
+                print(f'[nlp_engine] WARNING: {error_note}', file=_sys.stderr)
 
-        # Frequency fallback (runs if sklearn yielded < 3 cards)
+        # Frequency fallback (always runs if sklearn yielded < 3 cards)
         if len(cards) < 3:
             cards.extend(self._freq_fallback(sentences, seen, max_cards - len(cards)))
 
         return cards
 
-    def _freq_fallback(self, sentences: list, seen: set, n: int) -> list:
-        freq = {}
+    def _freq_fallback(self, sentences: list[str], seen: set[str], n: int) -> list[dict]:
+        freq: dict[str, int] = {}
         for s in sentences:
             for w in re.findall(r'\b[a-zA-Z]{4,25}\b', s.lower()):
                 if w not in _STOP_WORDS:
                     freq[w] = freq.get(w, 0) + 1
 
-        result = []
+        result: list[dict] = []
+        rgx_cache: dict[str, re.Pattern] = {}
         for word, count in sorted(freq.items(), key=lambda x: x[1], reverse=True):
             if len(result) >= n:
                 break
             if word in seen or count < 2:
                 continue
-            rgx = re.compile(r'\b' + re.escape(word) + r'\b', re.IGNORECASE)
+            rgx = rgx_cache.setdefault(word, re.compile(r'\b' + re.escape(word) + r'\b', re.IGNORECASE))
             for s in sentences:
                 if rgx.search(s):
                     defn = s if s.endswith('.') else s + '.'
@@ -361,12 +364,19 @@ class NLPEngine:
     # Extractive summarisation
     # ------------------------------------------------------------------
 
-    def _summarise(self, sentences: list, max_notes: int) -> list:
+    _SIGNAL_WORDS = re.compile(
+        r'\b(crucial|important|fundamental|essential|key|primary|significant|'
+        r'mechanism|principle|process|result|therefore|thus)\b', re.IGNORECASE)
+    _DEF_MARKERS  = re.compile(
+        r'\b(is defined as|refers to|consists of|characterized by|functions as)\b',
+        re.IGNORECASE)
+
+    def _summarise(self, sentences: list[str], max_notes: int) -> list[str]:
         if not sentences:
             return []
 
         total = len(sentences)
-        scored = []
+        scored: list[tuple[str, float]] = []
         for i, sent in enumerate(sentences):
             s = 0.0
             n = len(sent)
@@ -378,11 +388,13 @@ class NLPEngine:
                 s += 2.5
             if self._DEF_MARKERS.search(sent):
                 s += 2.0
+            # Earlier sentences weighted slightly higher
             s *= max(0.5, 1.0 - (i / total) * 0.4)
             scored.append((sent, s))
 
         top = {s for s, _ in sorted(scored, key=lambda x: x[1], reverse=True)[:max_notes]}
 
+        # Restore original order for natural reading flow
         notes = []
         for sent in sentences:
             if sent in top and sent not in notes:
@@ -435,7 +447,7 @@ def main() -> None:
 if __name__ == '__main__':
     try:
         main()
-    except Exception as exc:
+    except Exception as exc:   # noqa: BLE001
         sys.stdout.write(json.dumps({
             'status':      'error',
             'message':     f'NLP Engine Exception: {exc}',
